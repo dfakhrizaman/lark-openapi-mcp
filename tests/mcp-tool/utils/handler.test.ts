@@ -17,6 +17,7 @@ describe('larkOapiHandler', () => {
   // 创建测试用的mock函数和对象
 
   const imCreate = jest.fn();
+  const wikiNodeSearch = jest.fn();
 
   const mockClient = {
     im: {
@@ -26,6 +27,14 @@ describe('larkOapiHandler', () => {
     },
     docx: {
       // 空对象，用于测试回退逻辑
+    },
+    wiki: {
+      v1: {
+        node: {
+          // 真实存在的同名 SDK 方法，模拟 vendored SDK 内部硬编码旧端点的场景
+          search: (...args: any[]) => wikiNodeSearch(...args),
+        },
+      },
     },
     request: jest.fn(),
   };
@@ -194,6 +203,37 @@ describe('larkOapiHandler', () => {
         },
       ],
     });
+  });
+
+  it('应该在forceRequest为true时忽略真实存在的同名SDK方法，强制走client.request', async () => {
+    // 准备测试数据
+    const params = { data: { query: 'foo' } };
+    const tool = {
+      name: 'wiki.v1.node.search',
+      description: '搜索Wiki',
+      schema: {},
+      project: 'wiki',
+      sdkName: 'wiki.v1.node.search', // 在mockClient上能解析出真实函数
+      path: '/open-apis/wiki/v2/nodes/search',
+      httpMethod: 'POST',
+      forceRequest: true,
+    };
+
+    // 设置request成功响应
+    mockClient.request.mockResolvedValueOnce({
+      data: { items: [] },
+    });
+
+    // 调用函数
+    const result = await larkOapiHandler(mockClient as any, params, { tool });
+
+    // 验证：强制走了client.request，且使用了工具定义的path/httpMethod
+    expect(mockClient.request).toHaveBeenCalledWith(
+      expect.objectContaining({ method: 'POST', url: '/open-apis/wiki/v2/nodes/search' }),
+    );
+    // 验证：真实存在但已过时的SDK链式方法没有被调用
+    expect(wikiNodeSearch).not.toHaveBeenCalled();
+    expect(result.content[0].text).toBe('{"items":[]}');
   });
 
   it('应该通过测试user_access_token模式且没有token', async () => {

@@ -39,6 +39,11 @@ export interface McpTool {
   path?: string;
   // API HTTP Method
   httpMethod?: string;
+  // Force dispatch via client.request({ method: httpMethod, url: path, ... })
+  // even when sdkName resolves to a real function on the vendored SDK client.
+  // Use when the SDK's own hardcoded implementation targets a stale/incorrect
+  // endpoint, so the tool definition's path/httpMethod must win instead.
+  forceRequest?: boolean;
   // Access Token Type
   accessTokens?: string[];
   // Whether to support file upload

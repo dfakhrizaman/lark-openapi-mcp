@@ -4,26 +4,34 @@ import { logger } from '../../utils/logger';
 
 const sdkFuncCall = async (client: lark.Client, params: any, options: McpHandlerOptions) => {
   const { tool, userAccessToken } = options || {};
-  const { sdkName, path, httpMethod } = tool || {};
+  const { sdkName, path, httpMethod, forceRequest } = tool || {};
 
   if (!sdkName) {
     logger.error(`[larkOapiHandler] Invalid sdkName`);
     throw new Error('Invalid sdkName');
   }
 
-  const chain = sdkName.split('.');
-  let func: any = client;
-  for (const element of chain) {
-    func = func[element as keyof typeof func];
-    if (!func) {
-      func = async (params: any, ...args: any) =>
-        await client.request({ method: httpMethod, url: path, ...params }, ...args);
-      break;
-    }
-  }
-  if (!(func instanceof Function)) {
+  let func: any;
+  if (forceRequest) {
+    // Skip chain-walk entirely: some vendored SDK methods are hardcoded to a
+    // stale endpoint and would otherwise shadow the tool's intended path.
     func = async (params: any, ...args: any) =>
       await client.request({ method: httpMethod, url: path, ...params }, ...args);
+  } else {
+    const chain = sdkName.split('.');
+    func = client;
+    for (const element of chain) {
+      func = func[element as keyof typeof func];
+      if (!func) {
+        func = async (params: any, ...args: any) =>
+          await client.request({ method: httpMethod, url: path, ...params }, ...args);
+        break;
+      }
+    }
+    if (!(func instanceof Function)) {
+      func = async (params: any, ...args: any) =>
+        await client.request({ method: httpMethod, url: path, ...params }, ...args);
+    }
   }
 
   if (params?.useUAT) {

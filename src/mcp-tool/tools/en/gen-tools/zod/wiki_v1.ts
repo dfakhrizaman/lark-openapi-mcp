@@ -6,6 +6,7 @@ export const wikiV1NodeSearch = {
   sdkName: 'wiki.v1.node.search',
   path: '/open-apis/wiki/v2/nodes/search',
   httpMethod: 'POST',
+  forceRequest: true,
   description: '[Feishu/Lark]-Docs-Wiki-Search Wiki',
   accessTokens: ['user'],
   schema: {
